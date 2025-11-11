@@ -2,6 +2,16 @@
 
 A browser-based simulation that explores how cooperative strategies evolve through natural selection in the context of the iterated prisoner's dilemma.
 
+## 🎮 Live Demo
+
+**[Launch Simulator →](https://rawcdn.githack.com/emintham/ipd/master/index.html)**
+
+*No installation required - runs entirely in your browser!*
+
+Alternative links:
+- [Development Preview](https://raw.githack.com/emintham/ipd/master/index.html) (always latest)
+- [HTMLPreview Mirror](https://htmlpreview.github.io/?https://github.com/emintham/ipd/blob/master/index.html)
+
 ## Overview
 
 This simulation models a population of individuals with different strategies competing for survival through repeated prisoner's dilemma games. Over time, successful strategies reproduce while unsuccessful ones are eliminated, allowing you to observe evolutionary dynamics in real-time.
@@ -50,10 +60,14 @@ Configure the game-theoretic payoffs:
 
 ## Usage
 
-1. Open `index.html` in a web browser
-2. Configure initial population and parameters using the sliders
-3. Click **Play** to start the simulation
-4. Use **Pause** to suspend and **Reset** to restart
+**Online**: Use the [live demo link](#-live-demo) above
+
+**Local**:
+1. Download or clone this repository
+2. Open `index.html` in a web browser
+3. Configure initial population and parameters using the sliders
+4. Click **Play** to start the simulation
+5. Use **Pause** to suspend and **Reset** to restart
 
 ## How It Works
 

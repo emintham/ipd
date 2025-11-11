@@ -397,6 +397,12 @@
                             </tr>
                         </tbody>
                     </table>
+                    <div style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
+                        <div style="font-size: 0.85em; font-weight: 600; margin-bottom: 4px; color: #856404;">
+                            Rejection Penalty (3 consecutive rejections):
+                        </div>
+                        <input type="number" id="reject-input" value="-2" min="-10" max="0" style="width: 60px; padding: 6px; border: 2px solid #ffc107; border-radius: 4px; text-align: center; font-weight: 600;">
+                    </div>
                 </div>
 
                 <div class="control-section">
@@ -520,6 +526,7 @@
                 this.matchCount = 0;
                 this.history = new Map(); // Track history with other individuals
                 this.wrongedBy = new Set(); // Track who has wronged them (defected when I cooperated)
+                this.consecutiveRejections = 0; // Track consecutive match rejections
             }
 
             decide(opponent) {
@@ -725,39 +732,99 @@
 
                 // Get memory behavior setting
                 const memoryBehavior = document.querySelector('input[name="memory"]:checked').value;
+                const rejectPenalty = parseInt(document.getElementById('reject-input').value);
 
-                // Select first individual
-                let available = [...this.individuals];
-                const i1Index = Math.floor(Math.random() * available.length);
-                const ind1 = available[i1Index];
-                available.splice(i1Index, 1);
+                // Try to find a mutually acceptable match
+                let ind1, ind2;
+                let matchFound = false;
+                let attempts = 0;
+                const maxAttempts = this.individuals.length * 2;
 
-                // Select second individual (with affinity logic if enabled)
-                let ind2;
-                if (memoryBehavior === 'affinity') {
-                    // Separate available partners into cooperators and wrongdoers
-                    const cooperators = available.filter(ind => !ind1.wrongedBy.has(ind.id));
-                    const wrongdoers = available.filter(ind => ind1.wrongedBy.has(ind.id));
+                while (!matchFound && attempts < maxAttempts) {
+                    attempts++;
 
-                    // 80% chance to pick from cooperators if available, 20% random
-                    if (cooperators.length > 0 && Math.random() < 0.8) {
-                        // Prefer cooperators
-                        const i2Index = Math.floor(Math.random() * cooperators.length);
-                        ind2 = cooperators[i2Index];
-                    } else if (cooperators.length > 0 && wrongdoers.length > 0) {
-                        // 20% chance: pick randomly from cooperators (avoiding wrongdoers)
-                        const i2Index = Math.floor(Math.random() * cooperators.length);
-                        ind2 = cooperators[i2Index];
+                    // Select first individual randomly
+                    const available = [...this.individuals];
+                    const i1Index = Math.floor(Math.random() * available.length);
+                    ind1 = available[i1Index];
+                    available.splice(i1Index, 1);
+
+                    // Select second individual (with affinity logic if enabled)
+                    let candidate;
+                    if (memoryBehavior === 'affinity') {
+                        // Separate available partners into cooperators and wrongdoers
+                        const cooperators = available.filter(ind => !ind1.wrongedBy.has(ind.id));
+
+                        // 80% chance to pick from cooperators if available, 20% random
+                        if (cooperators.length > 0 && Math.random() < 0.8) {
+                            const i2Index = Math.floor(Math.random() * cooperators.length);
+                            candidate = cooperators[i2Index];
+                        } else if (cooperators.length > 0) {
+                            const i2Index = Math.floor(Math.random() * cooperators.length);
+                            candidate = cooperators[i2Index];
+                        } else if (available.length > 0) {
+                            const i2Index = Math.floor(Math.random() * available.length);
+                            candidate = available[i2Index];
+                        }
                     } else {
-                        // No cooperators available, or everyone is new, pick randomly
+                        // Random pairing
+                        if (available.length > 0) {
+                            const i2Index = Math.floor(Math.random() * available.length);
+                            candidate = available[i2Index];
+                        }
+                    }
+
+                    // Check mutual consent (neither has the other as a wrongdoer)
+                    if (candidate && memoryBehavior === 'affinity') {
+                        const ind1AcceptsInd2 = !ind1.wrongedBy.has(candidate.id);
+                        const ind2AcceptsInd1 = !candidate.wrongedBy.has(ind1.id);
+
+                        if (ind1AcceptsInd2 && ind2AcceptsInd1) {
+                            ind2 = candidate;
+                            matchFound = true;
+                        } else {
+                            // Match rejected - increment rejection counters
+                            if (!ind1AcceptsInd2) {
+                                candidate.consecutiveRejections++;
+                            }
+                            if (!ind2AcceptsInd1) {
+                                ind1.consecutiveRejections++;
+                            }
+                        }
+                    } else if (candidate) {
+                        // No affinity mode, accept any match
+                        ind2 = candidate;
+                        matchFound = true;
+                    }
+                }
+
+                // If no match found after max attempts, pair randomly anyway
+                if (!matchFound) {
+                    const available = [...this.individuals];
+                    const i1Index = Math.floor(Math.random() * available.length);
+                    ind1 = available[i1Index];
+                    available.splice(i1Index, 1);
+                    if (available.length > 0) {
                         const i2Index = Math.floor(Math.random() * available.length);
                         ind2 = available[i2Index];
                     }
-                } else {
-                    // Random pairing
-                    const i2Index = Math.floor(Math.random() * available.length);
-                    ind2 = available[i2Index];
                 }
+
+                if (!ind2) return; // Safety check
+
+                // Apply rejection penalties if needed (3 consecutive rejections)
+                if (ind1.consecutiveRejections >= 3) {
+                    ind1.score += rejectPenalty;
+                    ind1.consecutiveRejections = 0; // Reset after applying penalty
+                }
+                if (ind2.consecutiveRejections >= 3) {
+                    ind2.score += rejectPenalty;
+                    ind2.consecutiveRejections = 0; // Reset after applying penalty
+                }
+
+                // Reset rejection counters on successful match
+                ind1.consecutiveRejections = 0;
+                ind2.consecutiveRejections = 0;
 
                 // Decisions
                 const ind1Cooperates = ind1.decide(ind2);

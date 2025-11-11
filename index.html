@@ -329,6 +329,27 @@
                 </div>
 
                 <div class="control-section">
+                    <h3>Memory Behavior</h3>
+                    <div style="font-size: 0.85em; margin-bottom: 12px; color: #6b7280;">
+                        How should individuals respond when wronged?
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="memory" value="none" checked>
+                            <span>None - No memory of wrongs</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="memory" value="avoid">
+                            <span>Avoid - Try to match with others</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="memory" value="defect">
+                            <span>Defect - Always defect against them</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="control-section">
                     <h3>Animation Speed</h3>
                     <div class="slider-group">
                         <div class="slider-label">
@@ -438,9 +459,15 @@
                 this.score = 0;
                 this.matchCount = 0;
                 this.history = new Map(); // Track history with other individuals
+                this.wrongedBy = new Set(); // Track who has wronged them (defected when I cooperated)
             }
 
-            decide(opponent) {
+            decide(opponent, memoryBehavior) {
+                // If using defect memory mode and this opponent wronged us, always defect
+                if (memoryBehavior === 'defect' && this.wrongedBy.has(opponent.id)) {
+                    return false;
+                }
+
                 switch (this.strategy) {
                     case STRATEGY.GIVER:
                         return true; // Always cooperate
@@ -457,6 +484,14 @@
 
             recordOpponentMove(opponentId, cooperated) {
                 this.history.set(opponentId, cooperated);
+            }
+
+            recordWrong(opponentId) {
+                this.wrongedBy.add(opponentId);
+            }
+
+            isWrongdoer(opponentId) {
+                return this.wrongedBy.has(opponentId);
             }
 
             resetForNewRound() {
@@ -600,24 +635,53 @@
             }
 
             async runMatch() {
-                // Random pairing
-                const available = [...this.individuals];
-                if (available.length < 2) return;
+                if (this.individuals.length < 2) return;
 
+                // Get memory behavior setting
+                const memoryBehavior = document.querySelector('input[name="memory"]:checked').value;
+
+                // Select first individual
+                let available = [...this.individuals];
                 const i1Index = Math.floor(Math.random() * available.length);
                 const ind1 = available[i1Index];
                 available.splice(i1Index, 1);
 
-                const i2Index = Math.floor(Math.random() * available.length);
-                const ind2 = available[i2Index];
+                // Select second individual (with avoid logic if enabled)
+                let ind2;
+                if (memoryBehavior === 'avoid' && ind1.wrongedBy.size > 0) {
+                    // Try to find someone who hasn't wronged ind1
+                    const nonWrongdoers = available.filter(ind => !ind1.wrongedBy.has(ind.id));
+
+                    if (nonWrongdoers.length > 0) {
+                        // Match with a non-wrongdoer
+                        const i2Index = Math.floor(Math.random() * nonWrongdoers.length);
+                        ind2 = nonWrongdoers[i2Index];
+                    } else {
+                        // Everyone wronged them, pick randomly
+                        const i2Index = Math.floor(Math.random() * available.length);
+                        ind2 = available[i2Index];
+                    }
+                } else {
+                    // Random pairing
+                    const i2Index = Math.floor(Math.random() * available.length);
+                    ind2 = available[i2Index];
+                }
 
                 // Decisions
-                const ind1Cooperates = ind1.decide(ind2);
-                const ind2Cooperates = ind2.decide(ind1);
+                const ind1Cooperates = ind1.decide(ind2, memoryBehavior);
+                const ind2Cooperates = ind2.decide(ind1, memoryBehavior);
 
                 // Update history
                 ind1.recordOpponentMove(ind2.id, ind2Cooperates);
                 ind2.recordOpponentMove(ind1.id, ind1Cooperates);
+
+                // Track wrongs (cooperated but opponent defected)
+                if (ind1Cooperates && !ind2Cooperates) {
+                    ind1.recordWrong(ind2.id);
+                }
+                if (ind2Cooperates && !ind1Cooperates) {
+                    ind2.recordWrong(ind1.id);
+                }
 
                 // Calculate scores
                 let ind1Points, ind2Points;
@@ -669,13 +733,7 @@
                 // Sort by score (best to worst)
                 this.individuals.sort((a, b) => b.score - a.score);
 
-                // Calculate current proportions BEFORE culling
-                const givers = this.individuals.filter(i => i.strategy === STRATEGY.GIVER).length;
-                const matchers = this.individuals.filter(i => i.strategy === STRATEGY.MATCHER).length;
-                const takers = this.individuals.filter(i => i.strategy === STRATEGY.TAKER).length;
-                const total = this.individuals.length;
-
-                if (total === 0) return;
+                if (this.individuals.length === 0) return;
 
                 // Cull bottom K individuals
                 const cullCount = Math.min(K, this.individuals.length - 1); // Keep at least 1
@@ -683,7 +741,15 @@
                     this.individuals = this.individuals.slice(0, -cullCount);
                 }
 
-                // Spawn K new individuals based on proportions
+                // Calculate NEW proportions AFTER culling (successful strategies reproduce more)
+                const givers = this.individuals.filter(i => i.strategy === STRATEGY.GIVER).length;
+                const matchers = this.individuals.filter(i => i.strategy === STRATEGY.MATCHER).length;
+                const takers = this.individuals.filter(i => i.strategy === STRATEGY.TAKER).length;
+                const total = this.individuals.length;
+
+                if (total === 0) return;
+
+                // Spawn K new individuals based on NEW proportions
                 const newGivers = Math.round((givers / total) * K);
                 const newMatchers = Math.round((matchers / total) * K);
                 const newTakers = K - newGivers - newMatchers;

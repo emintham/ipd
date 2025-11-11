@@ -674,6 +674,9 @@
                 this.evolutionCount = 0;
                 this.running = false;
                 this.animations = [];
+                this.hoveredIndividual = null; // Track currently hovered individual
+                this.mouseClientX = 0; // Track mouse position for tooltip
+                this.mouseClientY = 0;
 
                 this.canvas = document.getElementById('canvas');
                 this.ctx = this.canvas.getContext('2d');
@@ -1097,6 +1100,11 @@
                     this.ctx.stroke();
                     this.ctx.restore();
                 });
+
+                // Update tooltip if hovering over an individual
+                if (this.hoveredIndividual) {
+                    this.updateTooltip();
+                }
             }
 
             updateUI() {
@@ -1172,26 +1180,39 @@
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
 
+                // Store mouse position for tooltip updates
+                this.mouseClientX = e.clientX;
+                this.mouseClientY = e.clientY;
+
                 // Find individual under mouse (within 10px radius)
-                let hoveredIndividual = null;
+                this.hoveredIndividual = null;
                 for (const ind of this.individuals) {
                     const dx = mouseX - ind.x;
                     const dy = mouseY - ind.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance <= 10) {
-                        hoveredIndividual = ind;
+                        this.hoveredIndividual = ind;
                         break;
                     }
                 }
 
-                if (hoveredIndividual) {
-                    this.showTooltip(hoveredIndividual, e.clientX, e.clientY);
+                // Update tooltip visibility
+                if (this.hoveredIndividual) {
+                    this.updateTooltip();
                 } else {
                     this.hideTooltip();
                 }
             }
 
-            showTooltip(individual, clientX, clientY) {
+            updateTooltip() {
+                if (!this.hoveredIndividual) return;
+
+                // Check if the hovered individual still exists (might have been culled)
+                if (!this.individuals.includes(this.hoveredIndividual)) {
+                    this.hideTooltip();
+                    return;
+                }
+
                 const tooltip = document.getElementById('tooltip');
                 const strategyNames = {
                     'giver': 'Giver',
@@ -1199,25 +1220,25 @@
                     'taker': 'Taker'
                 };
 
-                const age = this.generation - individual.birthGeneration;
+                const age = this.generation - this.hoveredIndividual.birthGeneration;
 
                 tooltip.innerHTML = `
-                    <div class="tooltip-title">${strategyNames[individual.strategy]} #${individual.id}</div>
+                    <div class="tooltip-title">${strategyNames[this.hoveredIndividual.strategy]} #${this.hoveredIndividual.id}</div>
                     <div class="tooltip-line">
                         <span class="tooltip-label">Strategy:</span>
-                        <span class="tooltip-value">${strategyNames[individual.strategy]}</span>
+                        <span class="tooltip-value">${strategyNames[this.hoveredIndividual.strategy]}</span>
                     </div>
                     <div class="tooltip-line">
                         <span class="tooltip-label">Current Score:</span>
-                        <span class="tooltip-value">${individual.score}</span>
+                        <span class="tooltip-value">${this.hoveredIndividual.score}</span>
                     </div>
                     <div class="tooltip-line">
                         <span class="tooltip-label">Matches Played:</span>
-                        <span class="tooltip-value">${individual.matchCount}</span>
+                        <span class="tooltip-value">${this.hoveredIndividual.matchCount}</span>
                     </div>
                     <div class="tooltip-line">
                         <span class="tooltip-label">Born Generation:</span>
-                        <span class="tooltip-value">${individual.birthGeneration}</span>
+                        <span class="tooltip-value">${this.hoveredIndividual.birthGeneration}</span>
                     </div>
                     <div class="tooltip-line">
                         <span class="tooltip-label">Age:</span>
@@ -1225,16 +1246,17 @@
                     </div>
                     <div class="tooltip-line">
                         <span class="tooltip-label">Known Wrongdoers:</span>
-                        <span class="tooltip-value">${individual.wrongedBy.size}</span>
+                        <span class="tooltip-value">${this.hoveredIndividual.wrongedBy.size}</span>
                     </div>
                 `;
 
                 tooltip.style.display = 'block';
-                tooltip.style.left = (clientX + 15) + 'px';
-                tooltip.style.top = (clientY + 15) + 'px';
+                tooltip.style.left = (this.mouseClientX + 15) + 'px';
+                tooltip.style.top = (this.mouseClientY + 15) + 'px';
             }
 
             hideTooltip() {
+                this.hoveredIndividual = null;
                 const tooltip = document.getElementById('tooltip');
                 tooltip.style.display = 'none';
             }

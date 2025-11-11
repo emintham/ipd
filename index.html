@@ -497,6 +497,27 @@
             resetForNewRound() {
                 this.matchCount = 0;
             }
+
+            clone(newId) {
+                // Create a new individual with the same strategy
+                const offspring = new Individual(this.strategy, newId, 0, 0);
+
+                // Inherit last 10 interaction memories (history)
+                const historyEntries = Array.from(this.history.entries());
+                const last10History = historyEntries.slice(-10);
+                for (const [opponentId, cooperated] of last10History) {
+                    offspring.history.set(opponentId, cooperated);
+                }
+
+                // Inherit last 10 wrongdoers (who wronged the parent)
+                const wrongdoersList = Array.from(this.wrongedBy);
+                const last10Wrongdoers = wrongdoersList.slice(-10);
+                for (const opponentId of last10Wrongdoers) {
+                    offspring.wrongedBy.add(opponentId);
+                }
+
+                return offspring;
+            }
         }
 
         // Game class
@@ -741,27 +762,18 @@
                     this.individuals = this.individuals.slice(0, -cullCount);
                 }
 
-                // Calculate NEW proportions AFTER culling (successful strategies reproduce more)
-                const givers = this.individuals.filter(i => i.strategy === STRATEGY.GIVER).length;
-                const matchers = this.individuals.filter(i => i.strategy === STRATEGY.MATCHER).length;
-                const takers = this.individuals.filter(i => i.strategy === STRATEGY.TAKER).length;
-                const total = this.individuals.length;
+                if (this.individuals.length === 0) return;
 
-                if (total === 0) return;
+                // Spawn K new individuals by randomly cloning survivors
+                // Survivors are the ones who made it through culling
+                for (let i = 0; i < K; i++) {
+                    // Pick a random survivor to clone
+                    const parentIndex = Math.floor(Math.random() * this.individuals.length);
+                    const parent = this.individuals[parentIndex];
 
-                // Spawn K new individuals based on NEW proportions
-                const newGivers = Math.round((givers / total) * K);
-                const newMatchers = Math.round((matchers / total) * K);
-                const newTakers = K - newGivers - newMatchers;
-
-                for (let i = 0; i < newGivers; i++) {
-                    this.individuals.push(new Individual(STRATEGY.GIVER, this.nextId++, 0, 0));
-                }
-                for (let i = 0; i < newMatchers; i++) {
-                    this.individuals.push(new Individual(STRATEGY.MATCHER, this.nextId++, 0, 0));
-                }
-                for (let i = 0; i < Math.max(0, newTakers); i++) {
-                    this.individuals.push(new Individual(STRATEGY.TAKER, this.nextId++, 0, 0));
+                    // Clone the parent (including last 10 memories)
+                    const offspring = parent.clone(this.nextId++);
+                    this.individuals.push(offspring);
                 }
 
                 // Increment counters

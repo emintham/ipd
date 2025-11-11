@@ -314,21 +314,14 @@
                     <h3>Simulation Parameters</h3>
                     <div class="slider-group">
                         <div class="slider-label">
-                            <span class="name">M: Matches Before Culling</span>
+                            <span class="name">M: Matches Before Evolution</span>
                             <span class="value" id="m-value">100</span>
                         </div>
                         <input type="range" id="m-slider" min="10" max="1000" value="100" step="10">
                     </div>
                     <div class="slider-group">
                         <div class="slider-label">
-                            <span class="name">N: Matches Before Spawning</span>
-                            <span class="value" id="n-value">50</span>
-                        </div>
-                        <input type="range" id="n-slider" min="10" max="1000" value="50" step="10">
-                    </div>
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span class="name">K: Individuals to Spawn</span>
+                            <span class="name">K: Cull/Spawn Count</span>
                             <span class="value" id="k-value">20</span>
                         </div>
                         <input type="range" id="k-slider" min="1" max="100" value="20">
@@ -389,12 +382,12 @@
                             <div class="stat-value" id="stat-population">0</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">Culling Events</div>
-                            <div class="stat-value" id="stat-culls">0</div>
+                            <div class="stat-label">Evolution Events</div>
+                            <div class="stat-value" id="stat-evolutions">0</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">Spawning Events</div>
-                            <div class="stat-value" id="stat-spawns">0</div>
+                            <div class="stat-label">Generation</div>
+                            <div class="stat-value" id="stat-generation">0</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Avg Score (Givers)</div>
@@ -477,9 +470,8 @@
                 this.individuals = [];
                 this.nextId = 0;
                 this.totalMatches = 0;
-                this.cullCount = 0;
-                this.spawnCount = 0;
-                this.matchesSinceSpawn = 0;
+                this.generation = 0;
+                this.evolutionCount = 0;
                 this.running = false;
                 this.animations = [];
 
@@ -503,9 +495,6 @@
                 });
                 document.getElementById('m-slider').addEventListener('input', (e) => {
                     document.getElementById('m-value').textContent = e.target.value;
-                });
-                document.getElementById('n-slider').addEventListener('input', (e) => {
-                    document.getElementById('n-value').textContent = e.target.value;
                 });
                 document.getElementById('k-slider').addEventListener('input', (e) => {
                     document.getElementById('k-value').textContent = e.target.value;
@@ -541,9 +530,8 @@
                 this.individuals = [];
                 this.nextId = 0;
                 this.totalMatches = 0;
-                this.cullCount = 0;
-                this.spawnCount = 0;
-                this.matchesSinceSpawn = 0;
+                this.generation = 0;
+                this.evolutionCount = 0;
                 this.animations = [];
 
                 document.getElementById('play-btn').disabled = false;
@@ -653,7 +641,6 @@
                 ind2.matchCount++;
 
                 this.totalMatches++;
-                this.matchesSinceSpawn++;
 
                 // Add animations
                 this.animations.push({
@@ -664,44 +651,25 @@
                     time: 0
                 });
 
-                // Check for culling
+                // Check for evolution (cull and spawn)
                 const M = parseInt(document.getElementById('m-slider').value);
                 const allReachedM = this.individuals.every(ind => ind.matchCount >= M);
 
                 if (allReachedM) {
-                    this.cull();
-                }
-
-                // Check for spawning
-                const N = parseInt(document.getElementById('n-slider').value);
-                if (this.matchesSinceSpawn >= N) {
-                    this.spawn();
-                    this.matchesSinceSpawn = 0;
+                    this.cullAndSpawn();
                 }
 
                 this.updateUI();
                 this.draw();
             }
 
-            cull() {
-                // Sort by score and remove bottom 20%
-                this.individuals.sort((a, b) => b.score - a.score);
-                const cullCount = Math.floor(this.individuals.length * 0.2);
-
-                if (cullCount > 0) {
-                    this.individuals = this.individuals.slice(0, -cullCount);
-                    this.cullCount++;
-
-                    // Reset match counts and reposition
-                    this.repositionIndividuals();
-                    this.individuals.forEach(ind => ind.resetForNewRound());
-                }
-            }
-
-            spawn() {
+            cullAndSpawn() {
                 const K = parseInt(document.getElementById('k-slider').value);
 
-                // Calculate current proportions
+                // Sort by score (best to worst)
+                this.individuals.sort((a, b) => b.score - a.score);
+
+                // Calculate current proportions BEFORE culling
                 const givers = this.individuals.filter(i => i.strategy === STRATEGY.GIVER).length;
                 const matchers = this.individuals.filter(i => i.strategy === STRATEGY.MATCHER).length;
                 const takers = this.individuals.filter(i => i.strategy === STRATEGY.TAKER).length;
@@ -709,7 +677,13 @@
 
                 if (total === 0) return;
 
-                // Spawn based on proportions
+                // Cull bottom K individuals
+                const cullCount = Math.min(K, this.individuals.length - 1); // Keep at least 1
+                if (cullCount > 0) {
+                    this.individuals = this.individuals.slice(0, -cullCount);
+                }
+
+                // Spawn K new individuals based on proportions
                 const newGivers = Math.round((givers / total) * K);
                 const newMatchers = Math.round((matchers / total) * K);
                 const newTakers = K - newGivers - newMatchers;
@@ -724,8 +698,13 @@
                     this.individuals.push(new Individual(STRATEGY.TAKER, this.nextId++, 0, 0));
                 }
 
-                this.spawnCount++;
+                // Increment counters
+                this.generation++;
+                this.evolutionCount++;
+
+                // Reset match counts and reposition
                 this.repositionIndividuals();
+                this.individuals.forEach(ind => ind.resetForNewRound());
             }
 
             repositionIndividuals() {
@@ -835,8 +814,8 @@
                 // Update statistics
                 document.getElementById('stat-matches').textContent = this.totalMatches;
                 document.getElementById('stat-population').textContent = total;
-                document.getElementById('stat-culls').textContent = this.cullCount;
-                document.getElementById('stat-spawns').textContent = this.spawnCount;
+                document.getElementById('stat-evolutions').textContent = this.evolutionCount;
+                document.getElementById('stat-generation').textContent = this.generation;
 
                 const giverAvg = givers.length > 0
                     ? Math.round(givers.reduce((sum, ind) => sum + ind.score, 0) / givers.length)

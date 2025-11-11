@@ -303,12 +303,12 @@
         }
 
         .payoff-matrix input {
-            width: 50px;
-            padding: 6px;
+            width: 40px;
+            padding: 4px;
             border: 2px solid #667eea;
             border-radius: 4px;
             text-align: center;
-            font-size: 0.95em;
+            font-size: 0.9em;
             font-weight: 600;
         }
 
@@ -316,6 +316,18 @@
             outline: none;
             border-color: #5568d3;
             background: #f0f4ff;
+        }
+
+        .payoff-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .payoff-separator {
+            font-weight: bold;
+            color: #667eea;
         }
     </style>
 </head>
@@ -374,26 +386,50 @@
                 <div class="control-section">
                     <h3>Payoff Matrix</h3>
                     <div style="font-size: 0.85em; margin-bottom: 8px; color: #6b7280;">
-                        Your payoff when you choose...
+                        Payoffs: (Row Player, Column Player)
                     </div>
                     <table class="payoff-matrix">
                         <thead>
                             <tr>
                                 <th></th>
-                                <th>Opponent<br>Cooperates</th>
-                                <th>Opponent<br>Defects</th>
+                                <th>Column Player<br>Cooperates</th>
+                                <th>Column Player<br>Defects</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="label-cell">You<br>Cooperate</td>
-                                <td><input type="number" id="cc-input" value="3" min="0" max="10"></td>
-                                <td><input type="number" id="cd-input" value="0" min="0" max="10"></td>
+                                <td class="label-cell">Row Player<br>Cooperates</td>
+                                <td>
+                                    <div class="payoff-cell">
+                                        <input type="number" id="cc-row-input" value="3" min="0" max="10">
+                                        <span class="payoff-separator">,</span>
+                                        <input type="number" id="cc-col-input" value="3" min="0" max="10">
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="payoff-cell">
+                                        <input type="number" id="cd-row-input" value="0" min="0" max="10">
+                                        <span class="payoff-separator">,</span>
+                                        <input type="number" id="cd-col-input" value="5" min="0" max="10">
+                                    </div>
+                                </td>
                             </tr>
                             <tr>
-                                <td class="label-cell">You<br>Defect</td>
-                                <td><input type="number" id="dc-input" value="5" min="0" max="10"></td>
-                                <td><input type="number" id="dd-input" value="1" min="0" max="10"></td>
+                                <td class="label-cell">Row Player<br>Defects</td>
+                                <td>
+                                    <div class="payoff-cell">
+                                        <input type="number" id="dc-row-input" value="5" min="0" max="10">
+                                        <span class="payoff-separator">,</span>
+                                        <input type="number" id="dc-col-input" value="0" min="0" max="10">
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="payoff-cell">
+                                        <input type="number" id="dd-row-input" value="1" min="0" max="10">
+                                        <span class="payoff-separator">,</span>
+                                        <input type="number" id="dd-col-input" value="1" min="0" max="10">
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -843,24 +879,29 @@
                 }
 
                 // Calculate scores from configurable payoff matrix
-                const cc = parseInt(document.getElementById('cc-input').value);
-                const cd = parseInt(document.getElementById('cd-input').value);
-                const dc = parseInt(document.getElementById('dc-input').value);
-                const dd = parseInt(document.getElementById('dd-input').value);
+                // ind1 is row player, ind2 is column player
+                const ccRow = parseInt(document.getElementById('cc-row-input').value);
+                const ccCol = parseInt(document.getElementById('cc-col-input').value);
+                const cdRow = parseInt(document.getElementById('cd-row-input').value);
+                const cdCol = parseInt(document.getElementById('cd-col-input').value);
+                const dcRow = parseInt(document.getElementById('dc-row-input').value);
+                const dcCol = parseInt(document.getElementById('dc-col-input').value);
+                const ddRow = parseInt(document.getElementById('dd-row-input').value);
+                const ddCol = parseInt(document.getElementById('dd-col-input').value);
 
                 let ind1Points, ind2Points;
                 if (ind1Cooperates && ind2Cooperates) {
-                    ind1Points = cc;
-                    ind2Points = cc;
+                    ind1Points = ccRow;  // Row player cooperates, column cooperates
+                    ind2Points = ccCol;
                 } else if (ind1Cooperates && !ind2Cooperates) {
-                    ind1Points = cd;
-                    ind2Points = dc;
+                    ind1Points = cdRow;  // Row player cooperates, column defects
+                    ind2Points = cdCol;
                 } else if (!ind1Cooperates && ind2Cooperates) {
-                    ind1Points = dc;
-                    ind2Points = cd;
+                    ind1Points = dcRow;  // Row player defects, column cooperates
+                    ind2Points = dcCol;
                 } else {
-                    ind1Points = dd;
-                    ind2Points = dd;
+                    ind1Points = ddRow;  // Both defect
+                    ind2Points = ddCol;
                 }
 
                 ind1.score += ind1Points;

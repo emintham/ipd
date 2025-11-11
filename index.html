@@ -329,6 +329,41 @@
                 </div>
 
                 <div class="control-section">
+                    <h3>Payoff Matrix</h3>
+                    <div style="font-size: 0.85em; margin-bottom: 12px; color: #6b7280;">
+                        Points awarded for each outcome
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">Both Cooperate</span>
+                            <span class="value" id="cc-value">3</span>
+                        </div>
+                        <input type="range" id="cc-slider" min="0" max="10" value="3">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">Cooperate vs Defect (Sucker)</span>
+                            <span class="value" id="cd-value">0</span>
+                        </div>
+                        <input type="range" id="cd-slider" min="0" max="10" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">Defect vs Cooperate (Temptation)</span>
+                            <span class="value" id="dc-value">5</span>
+                        </div>
+                        <input type="range" id="dc-slider" min="0" max="10" value="5">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">Both Defect</span>
+                            <span class="value" id="dd-value">1</span>
+                        </div>
+                        <input type="range" id="dd-slider" min="0" max="10" value="1">
+                    </div>
+                </div>
+
+                <div class="control-section">
                     <h3>Memory Behavior</h3>
                     <div style="font-size: 0.85em; margin-bottom: 12px; color: #6b7280;">
                         How should individuals use their memory?
@@ -350,9 +385,9 @@
                     <div class="slider-group">
                         <div class="slider-label">
                             <span class="name">Speed (ms per match)</span>
-                            <span class="value" id="speed-value">30</span>
+                            <span class="value" id="speed-value">5</span>
                         </div>
-                        <input type="range" id="speed-slider" min="10" max="1000" value="30" step="10">
+                        <input type="range" id="speed-slider" min="0" max="7" value="4" step="1">
                     </div>
                 </div>
 
@@ -436,13 +471,6 @@
             giver: '#22c55e',
             matcher: '#eab308',
             taker: '#ef4444'
-        };
-
-        const PAYOFF = {
-            COOPERATE_COOPERATE: 3,
-            COOPERATE_DEFECT: 0,
-            DEFECT_COOPERATE: 5,
-            DEFECT_DEFECT: 1
         };
 
         // Individual class
@@ -546,14 +574,38 @@
                 document.getElementById('k-slider').addEventListener('input', (e) => {
                     document.getElementById('k-value').textContent = e.target.value;
                 });
+
+                // Payoff matrix sliders
+                document.getElementById('cc-slider').addEventListener('input', (e) => {
+                    document.getElementById('cc-value').textContent = e.target.value;
+                });
+                document.getElementById('cd-slider').addEventListener('input', (e) => {
+                    document.getElementById('cd-value').textContent = e.target.value;
+                });
+                document.getElementById('dc-slider').addEventListener('input', (e) => {
+                    document.getElementById('dc-value').textContent = e.target.value;
+                });
+                document.getElementById('dd-slider').addEventListener('input', (e) => {
+                    document.getElementById('dd-value').textContent = e.target.value;
+                });
+
+                // Speed slider with discrete values
+                const speedMap = [1, 2, 3, 4, 5, 10, 20, 100];
                 document.getElementById('speed-slider').addEventListener('input', (e) => {
-                    document.getElementById('speed-value').textContent = e.target.value;
+                    const speed = speedMap[parseInt(e.target.value)];
+                    document.getElementById('speed-value').textContent = speed;
                 });
 
                 // Buttons
                 document.getElementById('play-btn').addEventListener('click', () => this.play());
                 document.getElementById('pause-btn').addEventListener('click', () => this.pause());
                 document.getElementById('reset-btn').addEventListener('click', () => this.reset());
+            }
+
+            getAnimationSpeed() {
+                const speedMap = [1, 2, 3, 4, 5, 10, 20, 100];
+                const sliderValue = parseInt(document.getElementById('speed-slider').value);
+                return speedMap[sliderValue];
             }
 
             play() {
@@ -636,7 +688,7 @@
                 while (this.running && this.individuals.length > 1) {
                     await this.runMatch();
 
-                    const speed = parseInt(document.getElementById('speed-slider').value);
+                    const speed = this.getAnimationSpeed();
                     await this.sleep(speed);
                 }
 
@@ -701,20 +753,25 @@
                     ind2.recordWrong(ind1.id);
                 }
 
-                // Calculate scores
+                // Calculate scores from configurable payoff matrix
+                const cc = parseInt(document.getElementById('cc-slider').value);
+                const cd = parseInt(document.getElementById('cd-slider').value);
+                const dc = parseInt(document.getElementById('dc-slider').value);
+                const dd = parseInt(document.getElementById('dd-slider').value);
+
                 let ind1Points, ind2Points;
                 if (ind1Cooperates && ind2Cooperates) {
-                    ind1Points = PAYOFF.COOPERATE_COOPERATE;
-                    ind2Points = PAYOFF.COOPERATE_COOPERATE;
+                    ind1Points = cc;
+                    ind2Points = cc;
                 } else if (ind1Cooperates && !ind2Cooperates) {
-                    ind1Points = PAYOFF.COOPERATE_DEFECT;
-                    ind2Points = PAYOFF.DEFECT_COOPERATE;
+                    ind1Points = cd;
+                    ind2Points = dc;
                 } else if (!ind1Cooperates && ind2Cooperates) {
-                    ind1Points = PAYOFF.DEFECT_COOPERATE;
-                    ind2Points = PAYOFF.COOPERATE_DEFECT;
+                    ind1Points = dc;
+                    ind2Points = cd;
                 } else {
-                    ind1Points = PAYOFF.DEFECT_DEFECT;
-                    ind2Points = PAYOFF.DEFECT_DEFECT;
+                    ind1Points = dd;
+                    ind2Points = dd;
                 }
 
                 ind1.score += ind1Points;

@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iterated Prisoner's Dilemma Evolution</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .controls-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            height: fit-content;
+        }
+
+        .control-section {
+            margin-bottom: 24px;
+        }
+
+        .control-section h3 {
+            font-size: 1.1em;
+            margin-bottom: 12px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 4px;
+        }
+
+        .slider-group {
+            margin-bottom: 16px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+        }
+
+        .slider-label .name {
+            font-weight: 600;
+        }
+
+        .slider-label .value {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #5568d3;
+            transform: scale(1.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .strategy-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .giver { background: #22c55e; }
+        .matcher { background: #eab308; }
+        .taker { background: #ef4444; }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95em;
+        }
+
+        .btn-play {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-play:hover {
+            background: #16a34a;
+            transform: translateY(-2px);
+        }
+
+        .btn-pause {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-pause:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+        }
+
+        .btn-reset {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .visualization {
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 12px;
+        }
+
+        .stats-panel {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .population-display {
+            margin-top: 16px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .population-bar {
+            display: flex;
+            height: 40px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .pop-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+            font-size: 0.9em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Iterated Prisoner's Dilemma Evolution</h1>
+            <p class="subtitle">Watch strategies evolve through natural selection</p>
+        </header>
+
+        <div class="main-content">
+            <div class="controls-panel">
+                <div class="control-section">
+                    <h3>Initial Population</h3>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name"><span class="strategy-color giver"></span>Givers (Always Cooperate)</span>
+                            <span class="value" id="giver-value">50</span>
+                        </div>
+                        <input type="range" id="giver-slider" min="0" max="200" value="50">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name"><span class="strategy-color matcher"></span>Matchers (Tit-for-Tat)</span>
+                            <span class="value" id="matcher-value">50</span>
+                        </div>
+                        <input type="range" id="matcher-slider" min="0" max="200" value="50">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name"><span class="strategy-color taker"></span>Takers (Always Defect)</span>
+                            <span class="value" id="taker-value">50</span>
+                        </div>
+                        <input type="range" id="taker-slider" min="0" max="200" value="50">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>Simulation Parameters</h3>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">M: Matches Before Culling</span>
+                            <span class="value" id="m-value">100</span>
+                        </div>
+                        <input type="range" id="m-slider" min="10" max="1000" value="100" step="10">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">N: Matches Before Spawning</span>
+                            <span class="value" id="n-value">50</span>
+                        </div>
+                        <input type="range" id="n-slider" min="10" max="1000" value="50" step="10">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">K: Individuals to Spawn</span>
+                            <span class="value" id="k-value">20</span>
+                        </div>
+                        <input type="range" id="k-slider" min="1" max="100" value="20">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>Animation Speed</h3>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">Speed (ms per match)</span>
+                            <span class="value" id="speed-value">100</span>
+                        </div>
+                        <input type="range" id="speed-slider" min="10" max="1000" value="100" step="10">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-play" id="play-btn">Play</button>
+                    <button class="btn-pause" id="pause-btn" disabled>Pause</button>
+                    <button class="btn-reset" id="reset-btn">Reset</button>
+                </div>
+
+                <div class="population-display">
+                    <h4>Current Population</h4>
+                    <div class="population-bar" id="population-bar"></div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <span class="strategy-color giver"></span>
+                            <span id="giver-count">0</span> Givers
+                        </div>
+                        <div class="legend-item">
+                            <span class="strategy-color matcher"></span>
+                            <span id="matcher-count">0</span> Matchers
+                        </div>
+                        <div class="legend-item">
+                            <span class="strategy-color taker"></span>
+                            <span id="taker-count">0</span> Takers
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="visualization">
+                    <canvas id="canvas" width="1000" height="700"></canvas>
+                </div>
+
+                <div class="stats-panel">
+                    <h3>Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Matches</div>
+                            <div class="stat-value" id="stat-matches">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Individuals</div>
+                            <div class="stat-value" id="stat-population">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Culling Events</div>
+                            <div class="stat-value" id="stat-culls">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Spawning Events</div>
+                            <div class="stat-value" id="stat-spawns">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Avg Score (Givers)</div>
+                            <div class="stat-value" id="stat-giver-avg">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Avg Score (Matchers)</div>
+                            <div class="stat-value" id="stat-matcher-avg">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Avg Score (Takers)</div>
+                            <div class="stat-value" id="stat-taker-avg">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const STRATEGY = {
+            GIVER: 'giver',
+            MATCHER: 'matcher',
+            TAKER: 'taker'
+        };
+
+        const COLORS = {
+            giver: '#22c55e',
+            matcher: '#eab308',
+            taker: '#ef4444'
+        };
+
+        const PAYOFF = {
+            COOPERATE_COOPERATE: 3,
+            COOPERATE_DEFECT: 0,
+            DEFECT_COOPERATE: 5,
+            DEFECT_DEFECT: 1
+        };
+
+        // Individual class
+        class Individual {
+            constructor(strategy, id, x, y) {
+                this.strategy = strategy;
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.score = 0;
+                this.matchCount = 0;
+                this.history = new Map(); // Track history with other individuals
+            }
+
+            decide(opponent) {
+                switch (this.strategy) {
+                    case STRATEGY.GIVER:
+                        return true; // Always cooperate
+                    case STRATEGY.TAKER:
+                        return false; // Always defect
+                    case STRATEGY.MATCHER:
+                        // Tit-for-tat: cooperate on first meeting, then copy opponent's last move
+                        const lastMove = this.history.get(opponent.id);
+                        return lastMove === undefined ? true : lastMove;
+                    default:
+                        return true;
+                }
+            }
+
+            recordOpponentMove(opponentId, cooperated) {
+                this.history.set(opponentId, cooperated);
+            }
+
+            resetForNewRound() {
+                this.matchCount = 0;
+            }
+        }
+
+        // Game class
+        class Game {
+            constructor() {
+                this.individuals = [];
+                this.nextId = 0;
+                this.totalMatches = 0;
+                this.cullCount = 0;
+                this.spawnCount = 0;
+                this.matchesSinceSpawn = 0;
+                this.running = false;
+                this.animations = [];
+
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+
+                this.setupEventListeners();
+                this.updateUI();
+            }
+
+            setupEventListeners() {
+                // Sliders
+                document.getElementById('giver-slider').addEventListener('input', (e) => {
+                    document.getElementById('giver-value').textContent = e.target.value;
+                });
+                document.getElementById('matcher-slider').addEventListener('input', (e) => {
+                    document.getElementById('matcher-value').textContent = e.target.value;
+                });
+                document.getElementById('taker-slider').addEventListener('input', (e) => {
+                    document.getElementById('taker-value').textContent = e.target.value;
+                });
+                document.getElementById('m-slider').addEventListener('input', (e) => {
+                    document.getElementById('m-value').textContent = e.target.value;
+                });
+                document.getElementById('n-slider').addEventListener('input', (e) => {
+                    document.getElementById('n-value').textContent = e.target.value;
+                });
+                document.getElementById('k-slider').addEventListener('input', (e) => {
+                    document.getElementById('k-value').textContent = e.target.value;
+                });
+                document.getElementById('speed-slider').addEventListener('input', (e) => {
+                    document.getElementById('speed-value').textContent = e.target.value;
+                });
+
+                // Buttons
+                document.getElementById('play-btn').addEventListener('click', () => this.play());
+                document.getElementById('pause-btn').addEventListener('click', () => this.pause());
+                document.getElementById('reset-btn').addEventListener('click', () => this.reset());
+            }
+
+            play() {
+                if (this.individuals.length === 0) {
+                    this.initialize();
+                }
+                this.running = true;
+                document.getElementById('play-btn').disabled = true;
+                document.getElementById('pause-btn').disabled = false;
+                this.gameLoop();
+            }
+
+            pause() {
+                this.running = false;
+                document.getElementById('play-btn').disabled = false;
+                document.getElementById('pause-btn').disabled = true;
+            }
+
+            reset() {
+                this.running = false;
+                this.individuals = [];
+                this.nextId = 0;
+                this.totalMatches = 0;
+                this.cullCount = 0;
+                this.spawnCount = 0;
+                this.matchesSinceSpawn = 0;
+                this.animations = [];
+
+                document.getElementById('play-btn').disabled = false;
+                document.getElementById('pause-btn').disabled = true;
+
+                this.updateUI();
+                this.draw();
+            }
+
+            initialize() {
+                const giverCount = parseInt(document.getElementById('giver-slider').value);
+                const matcherCount = parseInt(document.getElementById('matcher-slider').value);
+                const takerCount = parseInt(document.getElementById('taker-slider').value);
+
+                this.individuals = [];
+                this.nextId = 0;
+
+                const total = giverCount + matcherCount + takerCount;
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                const radius = Math.min(centerX, centerY) - 60;
+
+                let currentIndex = 0;
+
+                // Create individuals and position them in a circle
+                for (let i = 0; i < giverCount; i++) {
+                    const angle = (currentIndex / total) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    this.individuals.push(new Individual(STRATEGY.GIVER, this.nextId++, x, y));
+                    currentIndex++;
+                }
+
+                for (let i = 0; i < matcherCount; i++) {
+                    const angle = (currentIndex / total) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    this.individuals.push(new Individual(STRATEGY.MATCHER, this.nextId++, x, y));
+                    currentIndex++;
+                }
+
+                for (let i = 0; i < takerCount; i++) {
+                    const angle = (currentIndex / total) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    this.individuals.push(new Individual(STRATEGY.TAKER, this.nextId++, x, y));
+                    currentIndex++;
+                }
+
+                this.updateUI();
+                this.draw();
+            }
+
+            async gameLoop() {
+                while (this.running && this.individuals.length > 1) {
+                    await this.runMatch();
+
+                    const speed = parseInt(document.getElementById('speed-slider').value);
+                    await this.sleep(speed);
+                }
+
+                if (this.individuals.length <= 1) {
+                    this.pause();
+                    alert('Simulation ended: only one or fewer individuals remaining!');
+                }
+            }
+
+            async runMatch() {
+                // Random pairing
+                const available = [...this.individuals];
+                if (available.length < 2) return;
+
+                const i1Index = Math.floor(Math.random() * available.length);
+                const ind1 = available[i1Index];
+                available.splice(i1Index, 1);
+
+                const i2Index = Math.floor(Math.random() * available.length);
+                const ind2 = available[i2Index];
+
+                // Decisions
+                const ind1Cooperates = ind1.decide(ind2);
+                const ind2Cooperates = ind2.decide(ind1);
+
+                // Update history
+                ind1.recordOpponentMove(ind2.id, ind2Cooperates);
+                ind2.recordOpponentMove(ind1.id, ind1Cooperates);
+
+                // Calculate scores
+                let ind1Points, ind2Points;
+                if (ind1Cooperates && ind2Cooperates) {
+                    ind1Points = PAYOFF.COOPERATE_COOPERATE;
+                    ind2Points = PAYOFF.COOPERATE_COOPERATE;
+                } else if (ind1Cooperates && !ind2Cooperates) {
+                    ind1Points = PAYOFF.COOPERATE_DEFECT;
+                    ind2Points = PAYOFF.DEFECT_COOPERATE;
+                } else if (!ind1Cooperates && ind2Cooperates) {
+                    ind1Points = PAYOFF.DEFECT_COOPERATE;
+                    ind2Points = PAYOFF.COOPERATE_DEFECT;
+                } else {
+                    ind1Points = PAYOFF.DEFECT_DEFECT;
+                    ind2Points = PAYOFF.DEFECT_DEFECT;
+                }
+
+                ind1.score += ind1Points;
+                ind2.score += ind2Points;
+                ind1.matchCount++;
+                ind2.matchCount++;
+
+                this.totalMatches++;
+                this.matchesSinceSpawn++;
+
+                // Add animations
+                this.animations.push({
+                    x1: ind1.x, y1: ind1.y,
+                    x2: ind2.x, y2: ind2.y,
+                    points1: ind1Points,
+                    points2: ind2Points,
+                    time: 0
+                });
+
+                // Check for culling
+                const M = parseInt(document.getElementById('m-slider').value);
+                const allReachedM = this.individuals.every(ind => ind.matchCount >= M);
+
+                if (allReachedM) {
+                    this.cull();
+                }
+
+                // Check for spawning
+                const N = parseInt(document.getElementById('n-slider').value);
+                if (this.matchesSinceSpawn >= N) {
+                    this.spawn();
+                    this.matchesSinceSpawn = 0;
+                }
+
+                this.updateUI();
+                this.draw();
+            }
+
+            cull() {
+                // Sort by score and remove bottom 20%
+                this.individuals.sort((a, b) => b.score - a.score);
+                const cullCount = Math.floor(this.individuals.length * 0.2);
+
+                if (cullCount > 0) {
+                    this.individuals = this.individuals.slice(0, -cullCount);
+                    this.cullCount++;
+
+                    // Reset match counts and reposition
+                    this.repositionIndividuals();
+                    this.individuals.forEach(ind => ind.resetForNewRound());
+                }
+            }
+
+            spawn() {
+                const K = parseInt(document.getElementById('k-slider').value);
+
+                // Calculate current proportions
+                const givers = this.individuals.filter(i => i.strategy === STRATEGY.GIVER).length;
+                const matchers = this.individuals.filter(i => i.strategy === STRATEGY.MATCHER).length;
+                const takers = this.individuals.filter(i => i.strategy === STRATEGY.TAKER).length;
+                const total = this.individuals.length;
+
+                if (total === 0) return;
+
+                // Spawn based on proportions
+                const newGivers = Math.round((givers / total) * K);
+                const newMatchers = Math.round((matchers / total) * K);
+                const newTakers = K - newGivers - newMatchers;
+
+                for (let i = 0; i < newGivers; i++) {
+                    this.individuals.push(new Individual(STRATEGY.GIVER, this.nextId++, 0, 0));
+                }
+                for (let i = 0; i < newMatchers; i++) {
+                    this.individuals.push(new Individual(STRATEGY.MATCHER, this.nextId++, 0, 0));
+                }
+                for (let i = 0; i < Math.max(0, newTakers); i++) {
+                    this.individuals.push(new Individual(STRATEGY.TAKER, this.nextId++, 0, 0));
+                }
+
+                this.spawnCount++;
+                this.repositionIndividuals();
+            }
+
+            repositionIndividuals() {
+                const total = this.individuals.length;
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                const radius = Math.min(centerX, centerY) - 60;
+
+                this.individuals.forEach((ind, index) => {
+                    const angle = (index / total) * Math.PI * 2;
+                    ind.x = centerX + Math.cos(angle) * radius;
+                    ind.y = centerY + Math.sin(angle) * radius;
+                });
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Update and draw animations
+                this.animations = this.animations.filter(anim => {
+                    anim.time += 16; // Approximate frame time
+
+                    if (anim.time < 500) {
+                        const alpha = 1 - (anim.time / 500);
+
+                        // Draw line
+                        this.ctx.save();
+                        this.ctx.strokeStyle = `rgba(100, 100, 100, ${alpha * 0.5})`;
+                        this.ctx.lineWidth = 2;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(anim.x1, anim.y1);
+                        this.ctx.lineTo(anim.x2, anim.y2);
+                        this.ctx.stroke();
+                        this.ctx.restore();
+
+                        // Draw points
+                        this.ctx.save();
+                        this.ctx.fillStyle = `rgba(0, 150, 0, ${alpha})`;
+                        this.ctx.font = 'bold 16px sans-serif';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(`+${anim.points1}`, anim.x1, anim.y1 - 20 - anim.time / 10);
+                        this.ctx.fillText(`+${anim.points2}`, anim.x2, anim.y2 - 20 - anim.time / 10);
+                        this.ctx.restore();
+
+                        return true;
+                    }
+                    return false;
+                });
+
+                // Draw individuals
+                this.individuals.forEach(ind => {
+                    this.ctx.save();
+                    this.ctx.fillStyle = COLORS[ind.strategy];
+                    this.ctx.beginPath();
+                    this.ctx.arc(ind.x, ind.y, 8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#333';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                });
+            }
+
+            updateUI() {
+                const givers = this.individuals.filter(i => i.strategy === STRATEGY.GIVER);
+                const matchers = this.individuals.filter(i => i.strategy === STRATEGY.MATCHER);
+                const takers = this.individuals.filter(i => i.strategy === STRATEGY.TAKER);
+                const total = this.individuals.length;
+
+                // Update counts
+                document.getElementById('giver-count').textContent = givers.length;
+                document.getElementById('matcher-count').textContent = matchers.length;
+                document.getElementById('taker-count').textContent = takers.length;
+
+                // Update population bar
+                const giverPercent = total > 0 ? (givers.length / total) * 100 : 0;
+                const matcherPercent = total > 0 ? (matchers.length / total) * 100 : 0;
+                const takerPercent = total > 0 ? (takers.length / total) * 100 : 0;
+
+                const popBar = document.getElementById('population-bar');
+                popBar.innerHTML = '';
+
+                if (giverPercent > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'pop-segment giver';
+                    div.style.width = giverPercent + '%';
+                    div.textContent = giverPercent >= 10 ? `${Math.round(giverPercent)}%` : '';
+                    popBar.appendChild(div);
+                }
+
+                if (matcherPercent > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'pop-segment matcher';
+                    div.style.width = matcherPercent + '%';
+                    div.textContent = matcherPercent >= 10 ? `${Math.round(matcherPercent)}%` : '';
+                    popBar.appendChild(div);
+                }
+
+                if (takerPercent > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'pop-segment taker';
+                    div.style.width = takerPercent + '%';
+                    div.textContent = takerPercent >= 10 ? `${Math.round(takerPercent)}%` : '';
+                    popBar.appendChild(div);
+                }
+
+                // Update statistics
+                document.getElementById('stat-matches').textContent = this.totalMatches;
+                document.getElementById('stat-population').textContent = total;
+                document.getElementById('stat-culls').textContent = this.cullCount;
+                document.getElementById('stat-spawns').textContent = this.spawnCount;
+
+                const giverAvg = givers.length > 0
+                    ? Math.round(givers.reduce((sum, ind) => sum + ind.score, 0) / givers.length)
+                    : 0;
+                const matcherAvg = matchers.length > 0
+                    ? Math.round(matchers.reduce((sum, ind) => sum + ind.score, 0) / matchers.length)
+                    : 0;
+                const takerAvg = takers.length > 0
+                    ? Math.round(takers.reduce((sum, ind) => sum + ind.score, 0) / takers.length)
+                    : 0;
+
+                document.getElementById('stat-giver-avg').textContent = giverAvg;
+                document.getElementById('stat-matcher-avg').textContent = matcherAvg;
+                document.getElementById('stat-taker-avg').textContent = takerAvg;
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize game
+        const game = new Game();
+    </script>
+</body>
+</html>

@@ -1251,8 +1251,28 @@
                 `;
 
                 tooltip.style.display = 'block';
-                tooltip.style.left = (this.mouseClientX + 15) + 'px';
-                tooltip.style.top = (this.mouseClientY + 15) + 'px';
+
+                // Smart positioning to keep tooltip on screen
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+
+                // Horizontal positioning
+                let leftPos = this.mouseClientX + 15;
+                if (leftPos + tooltipRect.width > viewportWidth) {
+                    // Flip to left side of cursor
+                    leftPos = this.mouseClientX - tooltipRect.width - 15;
+                }
+
+                // Vertical positioning
+                let topPos = this.mouseClientY + 15;
+                if (topPos + tooltipRect.height > viewportHeight) {
+                    // Flip to above cursor
+                    topPos = this.mouseClientY - tooltipRect.height - 15;
+                }
+
+                tooltip.style.left = leftPos + 'px';
+                tooltip.style.top = topPos + 'px';
             }
 
             hideTooltip() {

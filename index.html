@@ -329,6 +329,43 @@
             font-weight: bold;
             color: #667eea;
         }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+        }
+
+        .tooltip-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .tooltip-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+            gap: 12px;
+        }
+
+        .tooltip-label {
+            color: #aaa;
+        }
+
+        .tooltip-value {
+            font-weight: 600;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -345,23 +382,23 @@
                     <div class="slider-group">
                         <div class="slider-label">
                             <span class="name"><span class="strategy-color giver"></span>Givers (Always Cooperate)</span>
-                            <span class="value" id="giver-value">50</span>
+                            <span class="value" id="giver-value">10</span>
                         </div>
-                        <input type="range" id="giver-slider" min="0" max="200" value="50">
+                        <input type="range" id="giver-slider" min="0" max="200" value="10">
                     </div>
                     <div class="slider-group">
                         <div class="slider-label">
                             <span class="name"><span class="strategy-color matcher"></span>Matchers (Tit-for-Tat)</span>
-                            <span class="value" id="matcher-value">50</span>
+                            <span class="value" id="matcher-value">20</span>
                         </div>
-                        <input type="range" id="matcher-slider" min="0" max="200" value="50">
+                        <input type="range" id="matcher-slider" min="0" max="200" value="20">
                     </div>
                     <div class="slider-group">
                         <div class="slider-label">
                             <span class="name"><span class="strategy-color taker"></span>Takers (Always Defect)</span>
-                            <span class="value" id="taker-value">50</span>
+                            <span class="value" id="taker-value">10</span>
                         </div>
-                        <input type="range" id="taker-slider" min="0" max="200" value="50">
+                        <input type="range" id="taker-slider" min="0" max="200" value="10">
                     </div>
                 </div>
 
@@ -380,6 +417,13 @@
                             <span class="value" id="k-value">20</span>
                         </div>
                         <input type="range" id="k-slider" min="1" max="100" value="20">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span class="name">Max Lifespan (generations)</span>
+                            <span class="value" id="lifespan-value">3</span>
+                        </div>
+                        <input type="range" id="lifespan-slider" min="1" max="20" value="3">
                     </div>
                 </div>
 
@@ -463,9 +507,9 @@
                     <div class="slider-group">
                         <div class="slider-label">
                             <span class="name">Speed (ms per match)</span>
-                            <span class="value" id="speed-value">5</span>
+                            <span class="value" id="speed-value">1</span>
                         </div>
-                        <input type="range" id="speed-slider" min="0" max="7" value="4" step="1">
+                        <input type="range" id="speed-slider" min="0" max="7" value="0" step="1">
                     </div>
                 </div>
 
@@ -496,8 +540,9 @@
             </div>
 
             <div>
-                <div class="visualization">
+                <div class="visualization" style="position: relative;">
                     <canvas id="canvas" width="1000" height="700"></canvas>
+                    <div id="tooltip" class="tooltip"></div>
                 </div>
 
                 <div class="stats-panel">
@@ -553,7 +598,7 @@
 
         // Individual class
         class Individual {
-            constructor(strategy, id, x, y) {
+            constructor(strategy, id, x, y, birthGeneration = 0) {
                 this.strategy = strategy;
                 this.id = id;
                 this.x = x;
@@ -563,6 +608,7 @@
                 this.history = new Map(); // Track history with other individuals
                 this.wrongedBy = new Set(); // Track who has wronged them (defected when I cooperated)
                 this.consecutiveRejections = 0; // Track consecutive match rejections
+                this.birthGeneration = birthGeneration; // Track when this individual was born
             }
 
             decide(opponent) {
@@ -596,9 +642,9 @@
                 this.matchCount = 0;
             }
 
-            clone(newId) {
-                // Create a new individual with the same strategy
-                const offspring = new Individual(this.strategy, newId, 0, 0);
+            clone(newId, currentGeneration) {
+                // Create a new individual with the same strategy, born in the current generation
+                const offspring = new Individual(this.strategy, newId, 0, 0, currentGeneration);
 
                 // Inherit last 10 interaction memories (history)
                 const historyEntries = Array.from(this.history.entries());
@@ -653,6 +699,9 @@
                 document.getElementById('k-slider').addEventListener('input', (e) => {
                     document.getElementById('k-value').textContent = e.target.value;
                 });
+                document.getElementById('lifespan-slider').addEventListener('input', (e) => {
+                    document.getElementById('lifespan-value').textContent = e.target.value;
+                });
 
                 // Speed slider with discrete values
                 const speedMap = [1, 2, 3, 4, 5, 10, 20, 100];
@@ -665,6 +714,10 @@
                 document.getElementById('play-btn').addEventListener('click', () => this.play());
                 document.getElementById('pause-btn').addEventListener('click', () => this.pause());
                 document.getElementById('reset-btn').addEventListener('click', () => this.reset());
+
+                // Mouse events for tooltip
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseleave', () => this.hideTooltip());
             }
 
             getAnimationSpeed() {
@@ -934,13 +987,27 @@
 
             cullAndSpawn() {
                 const K = parseInt(document.getElementById('k-slider').value);
+                const maxLifespan = parseInt(document.getElementById('lifespan-slider').value);
+
+                if (this.individuals.length === 0) return;
+
+                // First, cull individuals that have reached maximum lifespan
+                const oldIndividuals = this.individuals.filter(ind =>
+                    (this.generation - ind.birthGeneration) >= maxLifespan
+                );
+                const oldDeathCount = oldIndividuals.length;
+
+                // Remove old individuals
+                this.individuals = this.individuals.filter(ind =>
+                    (this.generation - ind.birthGeneration) < maxLifespan
+                );
+
+                if (this.individuals.length === 0) return;
 
                 // Sort by score (best to worst)
                 this.individuals.sort((a, b) => b.score - a.score);
 
-                if (this.individuals.length === 0) return;
-
-                // Cull bottom K individuals
+                // Cull bottom K individuals (performance-based culling)
                 const cullCount = Math.min(K, this.individuals.length - 1); // Keep at least 1
                 if (cullCount > 0) {
                     this.individuals = this.individuals.slice(0, -cullCount);
@@ -948,15 +1015,17 @@
 
                 if (this.individuals.length === 0) return;
 
-                // Spawn K new individuals by randomly cloning survivors
-                // Survivors are the ones who made it through culling
-                for (let i = 0; i < K; i++) {
+                // Calculate total spawns: K (for performance culling) + oldDeathCount (to replace old age deaths)
+                const totalSpawns = K + oldDeathCount;
+
+                // Spawn new individuals by randomly cloning survivors
+                for (let i = 0; i < totalSpawns; i++) {
                     // Pick a random survivor to clone
                     const parentIndex = Math.floor(Math.random() * this.individuals.length);
                     const parent = this.individuals[parentIndex];
 
-                    // Clone the parent (including last 10 memories)
-                    const offspring = parent.clone(this.nextId++);
+                    // Clone the parent (including last 10 memories), born in next generation
+                    const offspring = parent.clone(this.nextId++, this.generation + 1);
                     this.individuals.push(offspring);
                 }
 
@@ -1096,6 +1165,78 @@
 
             sleep(ms) {
                 return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            handleMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // Find individual under mouse (within 10px radius)
+                let hoveredIndividual = null;
+                for (const ind of this.individuals) {
+                    const dx = mouseX - ind.x;
+                    const dy = mouseY - ind.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance <= 10) {
+                        hoveredIndividual = ind;
+                        break;
+                    }
+                }
+
+                if (hoveredIndividual) {
+                    this.showTooltip(hoveredIndividual, e.clientX, e.clientY);
+                } else {
+                    this.hideTooltip();
+                }
+            }
+
+            showTooltip(individual, clientX, clientY) {
+                const tooltip = document.getElementById('tooltip');
+                const strategyNames = {
+                    'giver': 'Giver',
+                    'matcher': 'Matcher',
+                    'taker': 'Taker'
+                };
+
+                const age = this.generation - individual.birthGeneration;
+
+                tooltip.innerHTML = `
+                    <div class="tooltip-title">${strategyNames[individual.strategy]} #${individual.id}</div>
+                    <div class="tooltip-line">
+                        <span class="tooltip-label">Strategy:</span>
+                        <span class="tooltip-value">${strategyNames[individual.strategy]}</span>
+                    </div>
+                    <div class="tooltip-line">
+                        <span class="tooltip-label">Current Score:</span>
+                        <span class="tooltip-value">${individual.score}</span>
+                    </div>
+                    <div class="tooltip-line">
+                        <span class="tooltip-label">Matches Played:</span>
+                        <span class="tooltip-value">${individual.matchCount}</span>
+                    </div>
+                    <div class="tooltip-line">
+                        <span class="tooltip-label">Born Generation:</span>
+                        <span class="tooltip-value">${individual.birthGeneration}</span>
+                    </div>
+                    <div class="tooltip-line">
+                        <span class="tooltip-label">Age:</span>
+                        <span class="tooltip-value">${age} gen</span>
+                    </div>
+                    <div class="tooltip-line">
+                        <span class="tooltip-label">Known Wrongdoers:</span>
+                        <span class="tooltip-value">${individual.wrongedBy.size}</span>
+                    </div>
+                `;
+
+                tooltip.style.display = 'block';
+                tooltip.style.left = (clientX + 15) + 'px';
+                tooltip.style.top = (clientY + 15) + 'px';
+            }
+
+            hideTooltip() {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.style.display = 'none';
             }
         }
 
